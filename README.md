@@ -1,67 +1,61 @@
-# Markdown Compiler
+# PDF from Markdown
 
-A PHP-based CLI tool for compiling Markdown files into a single PDF document. This package uses `pandoc` for PDF generation and supports custom chapter structures.
+A PHP command-line tool that compiles a folder of Markdown files into a single PDF book using `pandoc`.
 
-Features:
+## Context
 
-- Sorting files by numeric indices in filenames.
-- Support for structured chapters in subdirectories.
-- Exporting file lists to custom formats.
+Small CLI tool built in January 2025 to turn a set of numbered Markdown files or chapters into one PDF document with a table of contents.
 
-### Docker Setup for the PHP Project
+## Features
 
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/okarabudka/pdf-from-md.git
-   cd pdf-from-md
-   ```
+- Collects files with a given extension (`md` by default) from a directory
+- Sorts files by the numeric index in their names
+- Optional chapter mode: each subdirectory is a chapter, chapters and their files are sorted by index
+- Prints the sorted file list and generates `book.pdf` in the source directory via `pandoc --pdf-engine=xelatex --toc`
 
-2. **Start Docker Containers**
-   Use the following command to start the services:
-   ```bash
-   docker compose up --build
-   ```
+## Tech stack
 
-3. **Install Dependencies**
-   The `composer` service will automatically run and install project dependencies. If needed, you can rerun it manually:
-   ```bash
-   docker compose run composer
-   ```
+- PHP 8.2 (CLI)
+- pandoc, XeLaTeX (TeX Live)
+- PHPUnit
+- Composer, Docker Compose
 
-5. **Run Command**
-   Run the `php` script:
-   ```bash
-    docker exec -it pdf_from_md_php php bin/export.php -p /path/to/files -c -f md
-   
-   -p (required): path to dir.
-   -c (optional): use subirectories.
-   -f (optional): file extensions (md by default).
-   ```
+## Architecture
 
-6. **Run Tests**
-   Execute PHPUnit tests using:
-   ```bash
-   docker compose run composer test
-   ```
+- `bin/export.php`: CLI entry point; parses options with `getopt` and calls the processor
+- `src/FileProcessor.php`: file discovery, sorting and PDF generation (namespace `Akrbdk\PdfFromMd`)
+- `Dockerfile`: PHP 8.2 CLI image with pandoc and TeX Live, so no local installation is needed
 
----
+## Getting started
 
-## Stopping Containers
-
-To stop all running containers:
 ```bash
-docker compose down
+docker compose up --build -d
+docker compose run composer
+docker exec -it pdf_from_md_php php bin/export.php -p /app/path/to/files -c -f md
 ```
 
----
+The project directory is mounted at `/app` inside the container, so the source folder must be inside the project.
 
-## Troubleshooting
+Options:
 
-- If you encounter permission issues, run:
-  ```bash
-  sudo chmod -R 775 .
-  ```
-- To rebuild containers after changes:
-  ```bash
-  docker compose up --build
-  ```
+- `-p`, `--root-path` (required): directory with the Markdown files
+- `-c`, `--using-chapter-folders` (optional): read files from chapter subdirectories
+- `-f`, `--file-extension` (optional): file extension, `md` by default
+
+Stop the containers with `docker compose down`.
+
+## Testing
+
+```bash
+docker compose run composer test
+```
+
+This runs `phpunit --testdox` on `tests/FileProcessorTest.php`, which checks file ordering with and without chapter folders using the files in `tests/mock-files/`.
+
+## Status
+
+Finished small tool (2025), not actively maintained.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
