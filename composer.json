@@ -1,5 +1,5 @@
 {
-    "name": "akrbdk/pdf-from-md",
+    "name": "okarabudka/pdf-from-md",
     "description": "A PHP to process and export Markdown files to PDF.",
     "type": "library",
     "license": "MIT",
