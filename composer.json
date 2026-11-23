@@ -1,29 +1,39 @@
 {
     "name": "okarabudka/pdf-from-md",
-    "description": "A PHP to process and export Markdown files to PDF.",
-    "type": "library",
+    "description": "CLI tool that compiles a folder of numbered Markdown files into one PDF book with pandoc.",
+    "type": "project",
     "license": "MIT",
     "authors": [
         {
-            "name": "alexander.karabudka",
+            "name": "Oleksandr Karabudka",
             "email": "sanyakarabudka@gmail.com"
         }
     ],
     "require": {
-        "php": ">=8.2"
+        "php": "^8.3"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^12.0"
     },
     "autoload": {
         "psr-4": {
-            "Akrbdk\\PdfFromMd\\": "src/"
+            "Okarabudka\\PdfFromMd\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Okarabudka\\PdfFromMd\\Tests\\": "tests/"
         }
     },
     "bin": [
         "bin/export.php"
     ],
     "scripts": {
-        "test": "phpunit --testdox"
+        "test": "phpunit",
+        "stan": "phpstan analyse --no-progress"
     },
-    "require-dev": {
-        "phpunit/phpunit": "*"
+    "config": {
+        "sort-packages": true
     }
 }

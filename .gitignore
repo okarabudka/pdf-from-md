@@ -1,6 +1,7 @@
 /vendor
 /.idea
 /.vscode
-/.env
+/.phpunit.cache
 *.log
-composer.lock
+*.pdf
+/.phpunit.result.cache

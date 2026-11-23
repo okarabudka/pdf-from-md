@@ -1,75 +1,113 @@
 <?php
 
-namespace Akrbdk\PdfFromMd;
+declare(strict_types=1);
 
-class FileProcessor
+namespace Okarabudka\PdfFromMd;
+
+final class FileProcessor
 {
-    private string $rootPath;
-    private string $fileExtension;
-    private bool $useChapterFolders;
+    private readonly string $rootPath;
 
-    public function __construct(string $rootPath, string $fileExtension = 'md', bool $useChapterFolders = false)
-    {
+    public function __construct(
+        string $rootPath,
+        private readonly string $fileExtension = 'md',
+        private readonly bool $useChapterFolders = false,
+    ) {
+        if (!is_dir($rootPath)) {
+            throw new \InvalidArgumentException(sprintf('Directory "%s" does not exist.', $rootPath));
+        }
+
         $this->rootPath = rtrim($rootPath, '/\\') . '/';
-        $this->fileExtension = $fileExtension;
-        $this->useChapterFolders = $useChapterFolders;
     }
 
+    /**
+     * @return list<string>
+     */
     public function getSortedListOfFiles(): array
     {
+        if (!$this->useChapterFolders) {
+            return $this->sortList($this->glob($this->rootPath . '*.' . $this->fileExtension));
+        }
+
         $sortedFiles = [];
+        $chapters = array_values(array_filter($this->glob($this->rootPath . '*'), 'is_dir'));
 
-        if ($this->useChapterFolders) {
-            $chapters = array_filter(glob($this->rootPath . '*'), 'is_dir');
-            $chapters = $this->sortList($chapters);
-
-            foreach ($chapters as $chapter) {
-                $chapterFiles = glob("$chapter/*." . $this->fileExtension);
-                $chapterFiles = $this->sortList($chapterFiles);
-                $sortedFiles = array_merge($sortedFiles, $chapterFiles);
-            }
-        } else {
-            $allFiles = glob($this->rootPath . "*." . $this->fileExtension);
-            $sortedFiles = $this->sortList($allFiles);
+        foreach ($this->sortList($chapters) as $chapter) {
+            $chapterFiles = $this->glob($chapter . '/*.' . $this->fileExtension);
+            $sortedFiles = [...$sortedFiles, ...$this->sortList($chapterFiles)];
         }
 
         return $sortedFiles;
     }
 
+    /**
+     * @param list<string> $fileList
+     */
+    public function buildCommand(array $fileList, string $outputFile = 'book.pdf'): string
+    {
+        if ($fileList === []) {
+            throw new \RuntimeException('No Markdown files found. Check the folder structure or the options.');
+        }
+
+        $outputPath = str_starts_with($outputFile, '/') ? $outputFile : $this->rootPath . $outputFile;
+
+        return sprintf(
+            'pandoc --pdf-engine=xelatex --toc -o %s %s',
+            escapeshellarg($outputPath),
+            implode(' ', array_map('escapeshellarg', $fileList)),
+        );
+    }
+
+    /**
+     * @param list<string> $fileList
+     */
+    public function generatePDF(array $fileList, string $outputFile = 'book.pdf'): void
+    {
+        $command = $this->buildCommand($fileList, $outputFile);
+
+        exec($command . ' 2>&1', $output, $exitCode);
+
+        if ($exitCode !== 0) {
+            throw new \RuntimeException(sprintf("pandoc failed with exit code %d:\n%s", $exitCode, implode("\n", $output)));
+        }
+    }
+
+    /**
+     * Orders paths by the leading number of their base name ("2-intro.md" before "10-outro.md"),
+     * falling back to natural order for names without a number.
+     *
+     * @param list<string> $list
+     *
+     * @return list<string>
+     */
     private function sortList(array $list): array
     {
-        usort($list, function ($a, $b) {
-            $indexA = (int) preg_replace('/\D/', '', $a);
-            $indexB = (int) preg_replace('/\D/', '', $b);
-            return $indexA <=> $indexB;
+        usort($list, static function (string $a, string $b): int {
+            $indexA = self::leadingNumber($a);
+            $indexB = self::leadingNumber($b);
+
+            if ($indexA !== null && $indexB !== null && $indexA !== $indexB) {
+                return $indexA <=> $indexB;
+            }
+
+            return strnatcasecmp(basename($a), basename($b));
         });
 
         return $list;
     }
 
-    public function generatePDF(array $fileList, string $outputFile = 'book.pdf'): void
+    private static function leadingNumber(string $path): ?int
     {
-        if (empty($fileList)) {
-            echo "No markdown files found. Check your folder structure or options.\n";
-            exit;
-        }
-
-        $fileListString = implode(' ', array_map('escapeshellarg', $fileList));
-        $outputFilePath = $this->rootPath . $outputFile;
-        $pandocCommand = "pandoc --pdf-engine=xelatex --toc -o $outputFilePath $fileListString";
-
-        $this->runCommand($pandocCommand);
+        return preg_match('/^(\d+)/', basename($path), $matches) === 1 ? (int) $matches[1] : null;
     }
 
-    private function runCommand(string $command): void
+    /**
+     * @return list<string>
+     */
+    private function glob(string $pattern): array
     {
-        $output = [];
-        $returnVar = 0;
-        exec($command, $output, $returnVar);
+        $result = glob($pattern);
 
-        if ($returnVar !== 0) {
-            echo "Error executing command: $command\n";
-            exit($returnVar);
-        }
+        return $result === false ? [] : $result;
     }
 }
